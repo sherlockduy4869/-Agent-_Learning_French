@@ -1,0 +1,704 @@
+<!doctype html>
+<!--
+  DELF / TCF exam engine — DO NOT EDIT PER EXAM.
+  EXAM.test = "TCF" switches to the TCF layout (no document, 4 options, CEFR-level results).
+  tools/build_exam.js fills two placeholders with the exam's data:
+    the TITLE marker inside <title>, and the EXAM_DATA marker after "const EXAM =".
+  All exam content (documents, questions, corrections) lives in the *.data.js file.
+-->
+<html lang="fr" data-theme="light"><!-- light by default; the ◐ button switches to dark -->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f1ea; --paper:#fffdf8; --ink:#1d1f24; --muted:#5d6270; --line:#ddd6c8;
+  --accent:#1f3a8a; --accent-soft:#e6ebf8; --good:#17734a; --good-soft:#e3f3ea;
+  --bad:#b42318; --bad-soft:#fbe9e7; --warn:#a15c00; --warn-soft:#fff1d9;
+  --hl:#ffe58a; --on-accent:#fff; --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171c; --paper:#1d2027; --ink:#e8e6e1; --muted:#a2a7b3; --line:#343844;
+    --accent:#8aa6ff; --accent-soft:#232c45; --good:#5fd39a; --good-soft:#17301f;
+    --bad:#ff8a7a; --bad-soft:#3a1e1b; --warn:#ffbf5e; --warn-soft:#3a2c14;
+    --hl:#6b5a12; --on-accent:#111; --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171c; --paper:#1d2027; --ink:#e8e6e1; --muted:#a2a7b3; --line:#343844;
+  --accent:#8aa6ff; --accent-soft:#232c45; --good:#5fd39a; --good-soft:#17301f;
+  --bad:#ff8a7a; --bad-soft:#3a1e1b; --warn:#ffbf5e; --warn-soft:#3a2c14;
+  --hl:#6b5a12; --on-accent:#111; --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+button{font:inherit;cursor:pointer}
+.hidden{display:none!important}
+
+/* Top bar */
+.bar{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
+.bar .wrap{display:flex;align-items:center;gap:16px;min-height:60px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
+.brand{font-weight:700;letter-spacing:.02em}
+.brand small{display:block;font-weight:500;color:var(--muted);font-size:12px;letter-spacing:0}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums;font-size:14px}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.danger{background:var(--bad-soft);color:var(--bad)}
+.btn{display:inline-block;border:0;border-radius:10px;padding:10px 18px;font-weight:600;background:var(--accent);color:var(--on-accent);text-decoration:none}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+.icon-btn{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;width:38px;height:38px}
+
+/* Cover */
+.cover{max-width:760px;margin:40px auto;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:36px 32px;box-shadow:var(--shadow)}
+.cover .kicker{text-transform:uppercase;font-size:12px;letter-spacing:.12em;color:var(--muted);font-weight:600}
+.cover h1{font-family:"Source Serif 4",Georgia,serif;font-size:34px;line-height:1.15;margin:8px 0 4px}
+.cover .sub{color:var(--muted);margin:0 0 24px}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 24px}
+.fact{border:1px solid var(--line);border-radius:12px;padding:14px}
+.fact b{display:block;font-size:22px}
+.fact span{color:var(--muted);font-size:13px}
+.consignes{background:var(--accent-soft);border-radius:12px;padding:16px 20px;margin-bottom:24px}
+.consignes h3{margin:0 0 8px;font-size:15px}
+.consignes ul{margin:0;padding-left:20px}
+.consignes li{margin:4px 0}
+.prof{border-left:3px solid var(--accent);padding:4px 0 4px 14px;margin-bottom:28px;color:var(--muted);font-style:italic}
+
+/* Results */
+.results{margin:28px auto 8px;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:28px;box-shadow:var(--shadow);scroll-margin-top:76px}
+.res-top{display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+.score{font-family:"Source Serif 4",Georgia,serif;font-size:64px;font-weight:700;line-height:1}
+.score small{font-size:26px;color:var(--muted);font-weight:400}
+.verdict{flex:1;min-width:240px}
+.verdict h2{margin:0 0 6px;font-size:22px}
+.verdict p{margin:0;color:var(--muted)}
+.tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;margin-bottom:8px}
+.tag.good{background:var(--good-soft);color:var(--good)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.breakdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:22px}
+.bd{border:1px solid var(--line);border-radius:12px;padding:14px}
+.bd .t{font-size:13px;color:var(--muted)}
+.bd .v{font-weight:700;font-size:18px;margin:2px 0 8px}
+.meter{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.grid-dots{display:flex;flex-wrap:wrap;gap:6px;margin-top:20px}
+.dot{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-weight:600;font-size:13px;text-decoration:none}
+.dot.ok{background:var(--good-soft);color:var(--good)}
+.dot.ko{background:var(--bad-soft);color:var(--bad)}
+.dot.na{background:var(--warn-soft);color:var(--warn)}
+.res-actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.note{font-size:13px;color:var(--muted);margin-top:16px}
+
+/* Exercise */
+.exercise{margin:32px 0}
+.ex-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:6px}
+.ex-head h2{margin:0;font-size:22px}
+.ex-head .pts{margin-left:auto;font-weight:600;color:var(--muted)}
+.ex-consigne{color:var(--muted);margin:6px 0 18px;font-style:italic}
+.ex-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+.ex-grid.solo{grid-template-columns:minmax(0,820px);justify-content:center}
+.q-text .gap{display:inline-block;min-width:5em;border-bottom:2px solid var(--ink);margin:0 3px;vertical-align:baseline}
+.q-text .dlg{display:block;font-weight:500;margin-top:4px}
+.q-text .inst{display:block;font-weight:500;font-size:14px;color:var(--muted);margin-bottom:4px}
+.lvl{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700;margin-left:6px;vertical-align:1px}
+
+/* Document components (use these classes inside exercise.document) */
+.doc{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:28px 30px;box-shadow:var(--shadow);font-family:"Source Serif 4",Georgia,serif;font-size:17.5px;line-height:1.7;position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto}
+.doc .doc-title{font-size:25px;line-height:1.25;margin:0 0 6px;font-weight:700}
+.doc .chapo{font-weight:600;margin:0 0 14px}
+.doc .src{font-family:Inter,sans-serif;font-size:12.5px;color:var(--muted);margin-top:18px;border-top:1px solid var(--line);padding-top:10px}
+.doc p{margin:0 0 12px}
+.doc .itw-q{font-family:Inter,sans-serif;font-weight:600;font-size:15px;margin:18px 0 6px;color:var(--accent)}
+.situation{font-family:Inter,sans-serif;font-size:15px;background:var(--accent-soft);border-radius:12px;padding:14px 18px;margin-bottom:18px}
+.situation p{margin:6px 0}
+.situation ul{margin:4px 0 0;padding-left:20px}
+.ad{position:relative;border:1px solid var(--line);border-radius:12px;padding:14px 16px 6px 60px;margin-bottom:12px;font-size:16px;line-height:1.6}
+.ad h4{margin:0 0 4px;font-size:17px}
+.ad-letter{position:absolute;left:14px;top:14px;width:32px;height:32px;border-radius:8px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font:700 15px Inter,sans-serif}
+.mail-head{font-family:Inter,sans-serif;font-size:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:16px}
+.mail-head div{margin:2px 0}
+.mail-head span{display:inline-block;width:62px;color:var(--muted)}
+.ev{transition:background .3s;border-radius:3px}
+body.graded .ev{background:linear-gradient(transparent 62%,var(--accent-soft) 62%)}
+.ev.hl{background:var(--hl)!important;box-shadow:0 0 0 3px var(--hl)}
+
+/* Questions */
+.questions{display:flex;flex-direction:column;gap:14px}
+.q{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 18px 14px;scroll-margin-top:84px}
+.q-head{display:flex;gap:12px;align-items:flex-start}
+.q-num{flex:none;width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-weight:700;font-size:14px}
+.q-text{flex:1;margin:3px 0 0;font-weight:600}
+.q-pts{flex:none;font-size:12px;color:var(--muted);margin-top:6px;white-space:nowrap}
+.opts{display:flex;flex-direction:column;gap:8px;margin:14px 0 4px 42px}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;transition:border-color .15s,background .15s}
+.opt:hover{border-color:var(--accent)}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt .l{flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--muted);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--muted)}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt.sel .l{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+.opt input:focus-visible + .l{outline:2px solid var(--accent);outline-offset:2px}
+body.graded .opt{cursor:default}
+body.graded .opt:hover{border-color:var(--line)}
+.opt.correct{border-color:var(--good)!important;background:var(--good-soft)!important}
+.opt.correct .l{background:var(--good);border-color:var(--good);color:var(--paper)}
+.opt.wrong{border-color:var(--bad)!important;background:var(--bad-soft)!important}
+.opt.wrong .l{background:var(--bad);border-color:var(--bad);color:var(--paper)}
+.q.is-ok{border-left:4px solid var(--good)}
+.q.is-ko{border-left:4px solid var(--bad)}
+.q.is-na{border-left:4px solid var(--warn)}
+.fb{margin:12px 0 4px 42px;padding:14px 16px;border-radius:10px;background:var(--bg);font-size:15px}
+.fb .status{font-weight:700;margin-bottom:6px}
+.fb .status.ok{color:var(--good)} .fb .status.ko{color:var(--bad)} .fb .status.na{color:var(--warn)}
+.fb blockquote{margin:8px 0;padding:6px 12px;border-left:3px solid var(--accent);font-family:"Source Serif 4",Georgia,serif;font-style:italic}
+.fb ul{margin:6px 0;padding-left:18px}
+.fb .tip{margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--accent-soft);font-size:14px}
+.fb .see{margin-top:8px;border:0;background:none;color:var(--accent);font-weight:600;padding:0;text-decoration:underline}
+
+.footer-submit{display:flex;justify-content:center;margin:40px 0 60px}
+
+/* Paged mode (TCF): one question per screen, like the computer-based test */
+body.paged:not(.graded) .q{display:none}
+body.paged:not(.graded) .q.cur{display:block}
+body.paged:not(.graded) .q-text{font-size:18px}
+.qnav{max-width:820px;margin:18px auto 60px}
+.qnav-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.qpos{font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.btn:disabled{opacity:.4;cursor:default}
+.palette{display:flex;flex-wrap:wrap;gap:6px;margin-top:18px}
+.pal{width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);font-weight:600}
+.pal.done{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-soft)}
+.pal.now{outline:2px solid var(--accent);outline-offset:1px}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center;z-index:50;padding:16px}
+.modal{background:var(--paper);border-radius:16px;max-width:440px;width:100%;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.modal h3{margin:0 0 8px}
+.modal p{margin:0 0 18px;color:var(--muted)}
+.modal .acts{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+
+@media (max-width:860px){
+  .ex-grid{grid-template-columns:1fr}
+  .doc{position:static;max-height:none;padding:22px 18px;font-size:17px}
+  .opts,.fb{margin-left:0}
+  .facts{grid-template-columns:1fr}
+  .cover{padding:24px 18px;margin:20px auto}
+  .cover h1{font-size:28px}
+  .score{font-size:52px}
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand" id="brand"></div>
+    <div class="spacer"></div>
+    <span id="progress" class="chip hidden"></span>
+    <span id="timer" class="chip hidden" aria-live="polite"></span>
+    <button id="submitTop" class="btn hidden">Remettre ma copie</button>
+    <button id="themeBtn" class="icon-btn" title="Changer de thème" aria-label="Changer de thème">◐</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="cover" class="cover"></section>
+  <section id="results" class="results hidden" aria-live="polite"></section>
+  <div id="exam" class="hidden">
+    <div id="exercises"></div>
+    <div id="qnav" class="qnav hidden"></div>
+    <div class="footer-submit" id="footerSubmit"><button id="submitBottom" class="btn">Remettre ma copie</button></div>
+  </div>
+</main>
+
+<div id="modal" class="modal-bg hidden" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="modal">
+    <h3 id="mTitle">Remettre votre copie ?</h3>
+    <p id="mText"></p>
+    <div class="acts">
+      <button id="mCancel" class="btn ghost">Continuer l'épreuve</button>
+      <button id="mOk" class="btn">Oui, remettre ma copie</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const EXAM = /*__EXAM_DATA__*/null;
+
+/* Level-dependent wording. Add a level here to support it (A2, C1…). */
+const LEVELS = {
+  A2: { diploma: 'DELF', next: 'DELF B1',
+        progress: "Pour progresser, lisez des documents courts de la vie quotidienne (annonces, messages, affiches) et apprenez le vocabulaire de base.",
+        master: "Vous comprenez bien les documents simples de la vie quotidienne." },
+  B1: { diploma: 'DELF', next: 'DELF B2',
+        progress: "Pour progresser, lisez chaque semaine des articles courts et apprenez les connecteurs (mais, pourtant, donc, en effet…).",
+        master: "Vous comprenez bien les documents de la vie quotidienne et les articles." },
+  B2: { diploma: 'DELF', next: 'DALF C1',
+        progress: "Pour progresser, travaillez le vocabulaire abstrait et les connecteurs de nuance (toutefois, certes, en revanche…).",
+        master: "Vous maîtrisez bien les textes informatifs et argumentatifs." },
+  C1: { diploma: 'DALF', next: 'DALF C2',
+        progress: "Pour progresser, lisez des textes longs et denses (essais, éditoriaux) et entraînez-vous à reformuler les idées implicites.",
+        master: "Vous comprenez finement les textes longs et complexes." }
+};
+const IS_TCF = EXAM.test === 'TCF';
+const CEFR = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const TCF_BANDS = { A1: '100–199', A2: '200–299', B1: '300–399', B2: '400–499', C1: '500–599', C2: '600–699' };
+const LV = IS_TCF ? { diploma: 'TCF' } : LEVELS[EXAM.level];
+const PAGED = IS_TCF;   // one question per screen
+const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+const DURATION = EXAM.durationMin * 60;
+const STORE = EXAM.storeKey;
+const TOTAL_PTS = EXAM.exercises.reduce((s, e) => s + e.points, 0);
+const fmt = n => (Math.round(n * 100) / 100).toString().replace('.', ',');
+const $ = s => document.querySelector(s);
+
+const ALL = EXAM.exercises.flatMap((e, i) => e.questions.map(q => ({ ...q, ex: i, pts: e.points / e.questions.length })));
+const TOTAL_Q = ALL.length;
+
+let state = { answers: {}, start: null, submitted: false, elapsed: 0 };
+let tick = null;
+
+function save(){ try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e){} }
+function load(){ try { return JSON.parse(localStorage.getItem(STORE)); } catch(e){ return null; } }
+function clear(){ try { localStorage.removeItem(STORE); } catch(e){} }
+
+/* ---------- Shell (cover + documents) ---------- */
+function renderShell(){
+  $('#brand').innerHTML = IS_TCF
+    ? `TCF tout public · ${EXAM.level} <small>${EXAM.epreuve} · ${TOTAL_Q} questions</small>`
+    : `${LV.diploma} ${EXAM.level} <small>${EXAM.epreuve} · ${fmt(TOTAL_PTS)} points</small>`;
+  const dur = EXAM.durationMin >= 60 && EXAM.durationMin % 60 === 0 ? `${EXAM.durationMin / 60} h` : `${EXAM.durationMin} min`;
+  const maxOpts = Math.max(...ALL.map(q => q.o.length));
+  const sameOpts = ALL.every(q => q.o.length === maxOpts);
+  const letterRule = sameOpts
+    ? `(${LETTERS.slice(0, maxOpts - 1).join(', ')} ou ${LETTERS[maxOpts - 1]})`
+    : `(${EXAM.exercises.map((e, i) => {
+        const n = Math.max(...e.questions.map(q => q.o.length));
+        return `${LETTERS.slice(0, n - 1).join(', ')} ou ${LETTERS[n - 1]} dans l'exercice ${i + 1}`;
+      }).join(' ; ')})`;
+  const c = EXAM.cover || {};
+  const tcfCover = () => `
+    <div class="kicker">Test de connaissance du français · Tout public · Épreuve blanche · Sujet ${EXAM.sujet}</div>
+    <h1>${EXAM.epreuve}</h1>
+    <p class="sub">${c.subtitle || `Sujet d'entraînement au format TCF, centré sur le niveau ${EXAM.level} : grammaire, formulation et vocabulaire.`}</p>
+    <div class="facts">
+      <div class="fact"><b>${dur}</b><span>Durée de l'épreuve</span></div>
+      <div class="fact"><b>${TOTAL_Q}</b><span>Questions à choix multiple</span></div>
+      <div class="fact"><b>${EXAM.level}</b><span>Niveau visé (difficulté progressive)</span></div>
+    </div>
+    <div class="consignes">
+      <h3>Consignes</h3>
+      <ul>
+        <li>Pour chaque question, choisissez le mot ou l'expression qui complète correctement la phrase, ou la phrase correcte.</li>
+        <li><b>Une seule réponse</b> est correcte ${letterRule}.</li>
+        <li>Les questions sont classées par <b>difficulté croissante</b> : ne restez pas bloqué sur une question.</li>
+        <li>Les questions s'affichent <b>une par une</b>. La grille sous la question permet de revenir sur une question ; vous pouvez aussi utiliser les touches A, B, C, D et les flèches ← →.</li>
+        <li>Une réponse fausse ou absente vaut 0 point : il n'y a <b>pas de points négatifs</b>. Répondez à toutes les questions.</li>
+        <li>Le chronomètre démarre dès que vous cliquez sur « Commencer ». À la fin des ${EXAM.durationMin} minutes, la copie est remise automatiquement.</li>
+        <li>Dictionnaires et traducteurs interdits — jouez le jeu comme le jour de l'examen !</li>
+      </ul>
+    </div>
+    <div class="prof">« ${c.profQuote || "Vous avez moins d'une minute par question. Lisez toute la phrase avant de regarder les choix : le sujet, le temps, les prépositions et les connecteurs autour du blanc vous donnent la réponse."} » — Votre professeur</div>
+    <button id="startBtn" class="btn">Commencer l'épreuve</button>
+    <p id="resumeNote" class="note hidden"></p>`;
+  $('#cover').innerHTML = IS_TCF ? tcfCover() : `
+    <div class="kicker">Diplôme ${LV.diploma === 'DALF' ? 'approfondi' : "d'études"} en langue française · Épreuve blanche · Sujet ${EXAM.sujet}</div>
+    <h1>${EXAM.epreuve} — Niveau ${EXAM.level}</h1>
+    <p class="sub">${c.subtitle || "Sujet d'entraînement conforme au format QCM actuel de l'examen."}</p>
+    <div class="facts">
+      <div class="fact"><b>${dur}</b><span>Durée de l'épreuve</span></div>
+      <div class="fact"><b>${EXAM.exercises.length}</b><span>Exercices · ${TOTAL_Q} questions</span></div>
+      <div class="fact"><b>/${fmt(TOTAL_PTS)}</b><span>Note sur ${fmt(TOTAL_PTS)} points</span></div>
+    </div>
+    <div class="consignes">
+      <h3>Consignes</h3>
+      <ul>
+        <li>Lisez attentivement chaque document, puis répondez aux questions.</li>
+        <li>Pour chaque question, <b>une seule réponse</b> est correcte ${letterRule}.</li>
+        <li>Une réponse fausse ou absente vaut 0 point : il n'y a <b>pas de points négatifs</b>. Répondez à toutes les questions.</li>
+        <li>Le chronomètre démarre dès que vous cliquez sur « Commencer ». À la fin des ${EXAM.durationMin} minutes, la copie est remise automatiquement.</li>
+        <li>Dictionnaires et traducteurs interdits — jouez le jeu comme le jour de l'examen !</li>
+      </ul>
+    </div>
+    <div class="prof">« ${c.profQuote || "Avant de lire le texte, lisez d'abord les questions : elles vous indiquent ce que vous devez chercher. Puis lisez le document une première fois en entier, sans vous arrêter sur les mots inconnus."} » — Votre professeur</div>
+    <button id="startBtn" class="btn">Commencer l'épreuve</button>
+    <p id="resumeNote" class="note hidden"></p>`;
+
+  $('#exercises').innerHTML = EXAM.exercises.map((e, i) => `
+    <section class="exercise" id="ex${i + 1}">
+      <div class="ex-head"><h2>${e.title || `Exercice ${i + 1}`}</h2><span>${e.kind}</span><span class="pts">${fmt(e.points)} points</span></div>
+      <p class="ex-consigne">${e.consigne}</p>
+      <div class="ex-grid${e.document ? '' : ' solo'}">
+        ${e.document ? `<article class="doc">
+          ${e.document}
+          ${e.source ? `<div class="src">${e.source}</div>` : ''}
+        </article>` : ''}
+        <div class="questions" data-ex="${i}"></div>
+      </div>
+    </section>`).join('');
+}
+
+/* ---------- Questions ---------- */
+function renderQuestions(){
+  document.querySelectorAll('.questions').forEach(box => {
+    const ex = EXAM.exercises[+box.dataset.ex];
+    const pts = ex.points / ex.questions.length;
+    box.innerHTML = ex.questions.map(q => `
+      <div class="q" id="q${q.id}">
+        <div class="q-head">
+          <span class="q-num">${q.id}</span>
+          <p class="q-text">${q.q}</p>
+          <span class="q-pts">${fmt(pts)} pt</span>
+        </div>
+        <div class="opts" role="radiogroup" aria-label="Question ${q.id}">
+          ${q.o.map((txt, i) => `
+            <label class="opt" data-q="${q.id}" data-i="${i}">
+              <input type="radio" name="q${q.id}" value="${i}">
+              <span class="l">${LETTERS[i]}</span>
+              <span>${txt}</span>
+            </label>`).join('')}
+        </div>
+        <div class="fb hidden"></div>
+      </div>`).join('');
+  });
+  document.querySelectorAll('.opt input').forEach(inp => {
+    inp.addEventListener('change', e => {
+      if (state.submitted) return;
+      const id = +e.target.name.slice(1);
+      state.answers[id] = +e.target.value;
+      paintSelection(id);
+      updateProgress();
+      save();
+    });
+  });
+}
+
+function paintSelection(id){
+  document.querySelectorAll(`.opt[data-q="${id}"]`).forEach(l => {
+    const sel = state.answers[id] === +l.dataset.i;
+    l.classList.toggle('sel', sel);
+    l.querySelector('input').checked = sel;
+  });
+}
+function updateProgress(){ $('#progress').textContent = `${Object.keys(state.answers).length} / ${TOTAL_Q} réponses`; paintNav(); }
+
+/* ---------- Paged navigation (TCF) ---------- */
+let cur = 0;
+function renderNav(){
+  if (!PAGED) return;
+  $('#qnav').innerHTML = `
+    <div class="qnav-row">
+      <button class="btn ghost" id="prevQ">← Précédente</button>
+      <span class="qpos" id="qpos"></span>
+      <button class="btn" id="nextQ">Suivante →</button>
+    </div>
+    <div class="palette" aria-label="Aller à la question">${ALL.map((q, i) => `<button class="pal" data-i="${i}" aria-label="Question ${q.id}">${q.id}</button>`).join('')}</div>
+    <p class="note">Raccourcis : touches A, B, C, D pour répondre · flèches ← → pour changer de question.</p>`;
+  $('#prevQ').addEventListener('click', () => go(cur - 1));
+  $('#nextQ').addEventListener('click', () => cur === TOTAL_Q - 1 ? askSubmit() : go(cur + 1));
+  document.querySelectorAll('.pal').forEach(b => b.addEventListener('click', () => go(+b.dataset.i)));
+}
+function go(i){
+  if (!PAGED || state.submitted) return;
+  cur = Math.max(0, Math.min(TOTAL_Q - 1, i));
+  state.cur = cur; save();
+  document.querySelectorAll('.q').forEach(c => c.classList.toggle('cur', c.id === `q${ALL[cur].id}`));
+  paintNav();
+  window.scrollTo({ top: 0 });
+}
+function paintNav(){
+  if (!PAGED || !$('#qpos')) return;
+  $('#qpos').textContent = `Question ${cur + 1} / ${TOTAL_Q}`;
+  $('#prevQ').disabled = cur === 0;
+  $('#nextQ').textContent = cur === TOTAL_Q - 1 ? 'Remettre ma copie' : 'Suivante →';
+  document.querySelectorAll('.pal').forEach((b, i) => {
+    b.classList.toggle('done', state.answers[ALL[i].id] !== undefined);
+    b.classList.toggle('now', i === cur);
+  });
+}
+
+/* ---------- Timer ---------- */
+function remaining(){ return Math.max(0, DURATION - Math.floor((Date.now() - state.start) / 1000)); }
+function showTime(sec){
+  const m = String(Math.floor(sec / 60)).padStart(2, '0'), s = String(sec % 60).padStart(2, '0');
+  const t = $('#timer');
+  t.textContent = `⏱ ${m}:${s}`;
+  const warnAt = Math.min(600, DURATION / 3), dangerAt = Math.min(300, DURATION / 7.5); // 10/5 min, or 5/2 min for a 15-min paper
+  t.classList.toggle('warn', sec <= warnAt && sec > dangerAt);
+  t.classList.toggle('danger', sec <= dangerAt);
+}
+function startTimer(){
+  clearInterval(tick);
+  const step = () => { const r = remaining(); showTime(r); if (r <= 0){ clearInterval(tick); grade(true); } };
+  step();
+  tick = setInterval(step, 1000);
+}
+
+/* ---------- Start ---------- */
+function startExam(resume){
+  if (!resume){ state = { answers: {}, start: Date.now(), submitted: false, elapsed: 0 }; save(); }
+  $('#cover').classList.add('hidden');
+  $('#exam').classList.remove('hidden');
+  ['#progress', '#timer', '#submitTop'].forEach(s => $(s).classList.remove('hidden'));
+  Object.keys(state.answers).forEach(id => paintSelection(+id));
+  if (PAGED){
+    document.body.classList.add('paged');
+    $('#qnav').classList.remove('hidden');
+    $('#footerSubmit').classList.add('hidden');
+    go(state.cur || 0);
+  }
+  updateProgress();
+  startTimer();
+  window.scrollTo({ top: 0 });
+}
+
+/* ---------- Submit & grade ---------- */
+function askSubmit(){
+  const missing = TOTAL_Q - Object.keys(state.answers).length;
+  $('#mText').innerHTML = missing
+    ? `Attention : <b>${missing} question${missing > 1 ? 's' : ''} sans réponse</b>. Une réponse vide vaut 0 point, alors qu'une réponse au hasard a toujours une chance d'être juste.`
+    : `Vous avez répondu aux ${TOTAL_Q} questions. Une fois la copie remise, vous ne pourrez plus modifier vos réponses.`;
+  $('#modal').classList.remove('hidden');
+  $('#mOk').focus();
+}
+function closeModal(){ $('#modal').classList.add('hidden'); }
+
+function grade(auto){
+  if (!state.submitted){
+    state.submitted = true;
+    state.elapsed = Math.min(DURATION, Math.floor((Date.now() - state.start) / 1000));
+    state.auto = !!auto;
+    save();
+  }
+  clearInterval(tick);
+  closeModal();
+  document.body.classList.add('graded');
+  ['#timer', '#submitTop', '#progress'].forEach(s => $(s).classList.add('hidden'));
+  $('#footerSubmit').classList.add('hidden');
+  $('#qnav').classList.add('hidden');
+  document.querySelectorAll('.q.cur').forEach(c => c.classList.remove('cur'));
+  $('#cover').classList.add('hidden');
+  $('#exam').classList.remove('hidden');
+  document.querySelectorAll('.opt input').forEach(i => i.disabled = true);
+
+  let total = 0; const perEx = EXAM.exercises.map(e => ({ got: 0, max: e.points }));
+  const dots = [];
+
+  ALL.forEach(q => {
+    const user = state.answers[q.id];
+    const ok = user === q.a, na = user === undefined;
+    if (ok){ total += q.pts; perEx[q.ex].got += q.pts; }
+    dots.push(`<a href="#q${q.id}" class="dot ${na ? 'na' : ok ? 'ok' : 'ko'}" title="Question ${q.id}">${q.id}</a>`);
+
+    const card = $(`#q${q.id}`);
+    card.classList.add(na ? 'is-na' : ok ? 'is-ok' : 'is-ko');
+    card.querySelectorAll('.opt').forEach(l => {
+      const i = +l.dataset.i;
+      l.classList.remove('sel');
+      if (i === q.a) l.classList.add('correct');
+      else if (i === user) l.classList.add('wrong');
+      l.querySelector('input').checked = i === user;
+    });
+
+    const status = na
+      ? `<div class="status na">Sans réponse — bonne réponse : ${LETTERS[q.a]} (0 / ${fmt(q.pts)} pt)</div>`
+      : ok
+        ? `<div class="status ok">✔ Bonne réponse : ${LETTERS[q.a]} (+${fmt(q.pts)} pt)</div>`
+        : `<div class="status ko">✘ Vous avez répondu ${LETTERS[user]} — bonne réponse : ${LETTERS[q.a]} (0 / ${fmt(q.pts)} pt)</div>`;
+    const lvlTag = IS_TCF && q.lvl ? `<span class="lvl">Niveau ${q.lvl}</span>` : '';
+    const fb = card.querySelector('.fb');
+    fb.innerHTML = `${status.replace(/<\/div>$/, lvlTag + '</div>')}
+      ${q.quote ? `<blockquote>${q.quote}</blockquote>` : ''}
+      <div>${q.why}</div>
+      <ul>${q.wrong.map(w => `<li>${w}</li>`).join('')}</ul>
+      <div class="tip">💡 <b>Conseil du professeur :</b> ${q.tip}</div>
+      ${document.querySelector(`.ev[data-q="${q.id}"]`) ? `<button class="see" data-see="${q.id}">Voir le passage dans le texte</button>` : ''}`;
+    fb.classList.remove('hidden');
+  });
+
+  document.querySelectorAll('[data-see]').forEach(b => b.addEventListener('click', () => seeInText(+b.dataset.see)));
+  renderResults(total, perEx, dots);
+  $('#results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function seeInText(id){
+  document.querySelectorAll('.ev.hl').forEach(e => e.classList.remove('hl'));
+  const spans = document.querySelectorAll(`.ev[data-q="${id}"]`);
+  spans.forEach(s => s.classList.add('hl'));
+  if (spans[0]) spans[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => spans.forEach(s => s.classList.remove('hl')), 4000);
+}
+
+function verdictFor(score){
+  const r = score / TOTAL_PTS; // thresholds expressed for /25: 5, 12.5, 18, 22
+  if (r < 0.2) return { cls: 'bad', tag: 'Note éliminatoire', title: 'Il faut retravailler les bases de la compréhension.',
+    text: "Une note inférieure à 5/25 dans une épreuve est éliminatoire, même si le total est suffisant. Entraînez-vous chaque jour avec des documents courts et apprenez à repérer l'idée principale de chaque paragraphe." };
+  if (r < 0.5) return { cls: 'warn', tag: 'Fragile', title: "Vous n'êtes pas éliminé, mais la marge est faible.",
+    text: "Vous comprenez une partie des documents, mais les reformulations et les détails vous échappent encore. Relisez les explications ci-dessous : notez chaque piège dans lequel vous êtes tombé." };
+  if (r < 0.72) return { cls: 'good', tag: `Niveau ${EXAM.level} en vue`, title: 'Bon travail, vous avez la moyenne sur cette épreuve !',
+    text: `Vous saisissez l'essentiel des documents. ${LV.progress}` };
+  if (r < 0.88) return { cls: 'good', tag: 'Très bien', title: 'Très bonne compréhension des documents.',
+    text: `${LV.master} Les quelques erreurs restantes portent probablement sur des détails : relisez toujours la phrase exacte avant de valider.` };
+  return { cls: 'good', tag: 'Excellent', title: 'Excellent ! Vous êtes prêt(e) pour le jour J.',
+    text: `Votre compréhension est fine et précise. Vous pouvez commencer à vous entraîner sur des sujets du ${LV.next}.` };
+}
+
+/* TCF: per-CEFR-level success; a level is reached when ≥ 60 % of its items (and of every easier level) are right. */
+function tcfResults(total, dots, timeNote){
+  const stats = CEFR.filter(l => ALL.some(q => q.lvl === l)).map(l => {
+    const qs = ALL.filter(q => q.lvl === l);
+    return { l, n: qs.length, ok: qs.filter(q => state.answers[q.id] === q.a).length };
+  });
+  let reached = null;
+  for (const s of stats) { if (s.ok / s.n >= 0.6) reached = s.l; else break; }
+  const gap = reached ? CEFR.indexOf(EXAM.level) - CEFR.indexOf(reached) : 9;
+  const v = gap <= 0
+    ? { cls: 'good', tag: `Niveau ${reached} atteint`, title: gap < 0 ? 'Excellent ! Vous dépassez le niveau visé.' : `Bravo, vous maîtrisez les structures du niveau ${EXAM.level} !`,
+        text: gap < 0 ? 'Vous réussissez même les questions du niveau supérieur. Entraînez-vous maintenant sur un sujet plus difficile.' : 'Relisez les explications des questions manquées : ce sont souvent les points qui vous feront passer au niveau suivant.' }
+    : gap === 1
+      ? { cls: 'warn', tag: `Niveau ${reached} consolidé`, title: `Le niveau ${EXAM.level} est en vue, mais pas encore acquis.`,
+          text: `Vous maîtrisez les structures du niveau ${reached}. Notez chaque règle expliquée ci-dessous pour les questions de niveau ${EXAM.level} manquées et revoyez-les cette semaine.` }
+      : { cls: 'bad', tag: reached ? `Niveau ${reached}` : `En dessous de ${stats[0].l}`, title: 'Il faut consolider les bases avant de viser ce niveau.',
+          text: `Commencez par les questions des premiers niveaux : chaque erreur correspond à une règle à revoir (conjugaison, pronoms, prépositions…).` };
+  $('#results').innerHTML = `
+    <div class="res-top">
+      <div class="score">${fmt(total)}<small> / ${fmt(TOTAL_PTS)}</small></div>
+      <div class="verdict">
+        <span class="tag ${v.cls}">${v.tag}</span>
+        <h2>${v.title}</h2>
+        <p>${v.text}</p>
+      </div>
+    </div>
+    <div class="breakdown">
+      ${stats.map(s => `
+        <div class="bd">
+          <div class="t">Questions de niveau ${s.l}</div>
+          <div class="v">${s.ok} / ${s.n}</div>
+          <div class="meter"><i style="width:${(s.ok / s.n) * 100}%"></i></div>
+        </div>`).join('')}
+    </div>
+    <div class="grid-dots" aria-label="Accès rapide aux questions">${dots.join('')}</div>
+    <p class="note">${timeNote}<br>
+    Rappel : le TCF n'a pas de note de réussite. Chaque épreuve donne un score de 100 à 699 et un niveau du CECRL
+    (${['B1', 'B2', 'C1', 'C2'].map(l => `${l} = ${TCF_BANDS[l]}`).join(', ')}), et les questions difficiles rapportent plus de points.
+    Ce sujet blanc donne une <b>estimation indicative</b> : un niveau est considéré comme atteint si vous réussissez au moins 60 % de ses questions et de celles des niveaux inférieurs.
+    ${reached ? `Estimation : <b>niveau ${reached}</b> (≈ ${TCF_BANDS[reached]} points sur l'échelle TCF).` : ''}</p>
+    <div class="res-actions">
+      <a class="btn" href="#q1">Lire la correction</a>
+      <button class="btn ghost" id="restart">Recommencer l'épreuve</button>
+    </div>`;
+}
+
+function renderResults(total, perEx, dots){
+  if (IS_TCF){
+    const nOk = ALL.filter(q => state.answers[q.id] === q.a).length;
+    const mins = Math.floor(state.elapsed / 60), secs = state.elapsed % 60;
+    tcfResults(total, dots, `${nOk} bonne${nOk > 1 ? 's' : ''} réponse${nOk > 1 ? 's' : ''} sur ${TOTAL_Q} · Temps utilisé : ${mins} min ${String(secs).padStart(2, '0')} s${state.auto ? ' (copie remise automatiquement à la fin du temps)' : ''}.`);
+    $('#results').classList.remove('hidden');
+    $('#restart').addEventListener('click', restart);
+    return;
+  }
+  const v = verdictFor(total);
+  const nOk = ALL.filter(q => state.answers[q.id] === q.a).length;
+  const mins = Math.floor(state.elapsed / 60), secs = state.elapsed % 60;
+  $('#results').innerHTML = `
+    <div class="res-top">
+      <div class="score">${fmt(total)}<small> / ${fmt(TOTAL_PTS)}</small></div>
+      <div class="verdict">
+        <span class="tag ${v.cls}">${v.tag}</span>
+        <h2>${v.title}</h2>
+        <p>${v.text}</p>
+      </div>
+    </div>
+    <div class="breakdown">
+      ${perEx.map((p, i) => `
+        <div class="bd">
+          <div class="t">Exercice ${i + 1} — ${EXAM.exercises[i].kind}</div>
+          <div class="v">${fmt(p.got)} / ${fmt(p.max)}</div>
+          <div class="meter"><i style="width:${(p.got / p.max) * 100}%"></i></div>
+        </div>`).join('')}
+    </div>
+    <div class="grid-dots" aria-label="Accès rapide aux questions">${dots.join('')}</div>
+    <p class="note">${nOk} bonne${nOk > 1 ? 's' : ''} réponse${nOk > 1 ? 's' : ''} sur ${TOTAL_Q} · Temps utilisé : ${mins} min ${String(secs).padStart(2, '0')} s${state.auto ? ' (copie remise automatiquement à la fin du temps)' : ''}.<br>
+    Rappel : le ${LV.diploma} ${EXAM.level} est noté sur 100 (4 épreuves de 25 points). Il faut <b>50/100 au total</b> et <b>au moins 5/25 dans chaque épreuve</b>. Cliquez sur un numéro pour lire la correction détaillée ; le bouton « Voir le passage dans le texte » surligne la justification dans le document.</p>
+    <div class="res-actions">
+      <a class="btn" href="#q1">Lire la correction</a>
+      <button class="btn ghost" id="restart">Recommencer l'épreuve</button>
+    </div>`;
+  $('#results').classList.remove('hidden');
+  $('#restart').addEventListener('click', restart);
+}
+
+function restart(){
+  clear();
+  state = { answers: {}, start: null, submitted: false, elapsed: 0 };
+  document.body.classList.remove('graded');
+  $('#results').classList.add('hidden');
+  $('#exam').classList.add('hidden');
+  $('#footerSubmit').classList.remove('hidden');
+  init();
+  window.scrollTo({ top: 0 });
+}
+
+/* ---------- Init ---------- */
+let resumable = false;
+function init(){
+  renderShell();
+  renderQuestions();
+  renderNav();
+  $('#cover').classList.remove('hidden');
+  resumable = false;
+  $('#startBtn').addEventListener('click', () => { startExam(resumable); resumable = false; });
+}
+
+$('#themeBtn').addEventListener('click', () => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+});
+$('#submitTop').addEventListener('click', askSubmit);
+$('#submitBottom').addEventListener('click', askSubmit);
+$('#mCancel').addEventListener('click', closeModal);
+$('#mOk').addEventListener('click', () => grade(false));
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') return closeModal();
+  if (!PAGED || state.submitted || $('#exam').classList.contains('hidden') || !$('#modal').classList.contains('hidden')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'ArrowRight') return go(cur + 1);
+  if (e.key === 'ArrowLeft') return go(cur - 1);
+  const i = LETTERS.indexOf(e.key.toUpperCase());
+  const inp = i >= 0 && document.querySelector(`input[name="q${ALL[cur].id}"][value="${i}"]`);
+  if (inp){ inp.checked = true; inp.dispatchEvent(new Event('change')); }
+});
+
+init();
+const saved = load();
+if (saved && saved.start){
+  state = saved;
+  if (state.submitted) grade(state.auto);
+  else if (remaining() > 0){
+    resumable = true;
+    $('#startBtn').textContent = "Reprendre l'épreuve en cours";
+    $('#resumeNote').innerHTML = `Une épreuve est en cours (${Object.keys(state.answers).length} réponse(s), ${Math.ceil(remaining() / 60)} min restantes). <a href="#" id="newExam">Recommencer à zéro</a>`;
+    $('#resumeNote').classList.remove('hidden');
+    $('#newExam').addEventListener('click', e => { e.preventDefault(); restart(); });
+  } else grade(true);
+}
+
+/* Test hook: ?autotest=1 answers option A everywhere and submits (used by build_exam.js --test). */
+if (new URLSearchParams(location.search).get('autotest')){
+  clear(); state = { answers: {}, start: Date.now(), submitted: false, elapsed: 0 };
+  startExam(true);
+  ALL.forEach(q => { if (q.id !== ALL[ALL.length - 1].id) state.answers[q.id] = 0; });
+  grade(false);
+}
+</script>
+</body>
+</html>
